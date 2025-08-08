@@ -2,9 +2,12 @@ import sys
 import argparse
 import questionary
 import time
+from colorama import init, Fore, Style
 from .discovery import discover_tasks, discover_providers, discover_models
 from .runner import run_task
-from .reporting import save_reports, generate_markdown_report
+from .reporting import save_reports
+from pyfiglet import Figlet, FigletFont
+import os
 
 def main():
     """
@@ -25,8 +28,18 @@ def main():
         -y, --non-interactive Run in non-interactive mode.
     Exits with status code 1 if no tasks or models are found.
     """
+    init(autoreset=True)
+
+    os.environ["PYFIGLET_FONT_DIR"] = "./fonts"
+    # --- NEW: Display the startup banner ---
+    f = Figlet(font="ANSI_SHADOW")
+    banner = f.renderText('SecureDev-Bench')
+    print(Style.BRIGHT + Fore.MAGENTA + banner, file=sys.stderr)
+    print(Fore.YELLOW + "A benchmark for the modern AI security agent.", file=sys.stderr)
+    # --- END of banner ---
+
     # --- Step 1: Discover all available components ---
-    print("Discovering available tasks and models...", file=sys.stderr)
+    print(Fore.CYAN + "Discovering available tasks and models...", file=sys.stderr)
     available_tasks = discover_tasks()
     provider_classes = discover_providers()
     available_models = discover_models(provider_classes)
@@ -55,58 +68,54 @@ def main():
         sys.exit(0)
         
     if args.list:
-        print("\nAvailable Tasks:", file=sys.stderr)
+        print(Style.BRIGHT + Fore.BLUE + "\nAvailable Tasks:", file=sys.stderr)
         for task in available_tasks: print(f"  - {task}", file=sys.stderr)
-        print("\nAvailable Models (based on your .env keys):", file=sys.stderr)
+        print(Style.BRIGHT + Fore.BLUE + "\nAvailable Models (based on your .env keys):", file=sys.stderr)
         for model in available_models: print(f"  - {model}", file=sys.stderr)
         sys.exit(0)
 
     # --- Step 4: Robust Error Handling ---
     if not available_tasks:
-        print("\nError: No task directories found in the 'tasks/' folder.", file=sys.stderr)
+        print(Style.BRIGHT + Fore.RED + "\nError: No task directories found in the 'tasks/' folder.", file=sys.stderr)
         sys.exit(1)
     if not available_models:
-        print("\nError: No models could be discovered. Check your .env file and API keys.", file=sys.stderr)
+        print(Style.BRIGHT + Fore.RED + "\nError: No models could be discovered. Check your .env file and API keys.", file=sys.stderr)
         sys.exit(1)
 
     # --- Step 5: Determine tasks and models to run ---
     if args.non_interactive:
-        # --- THIS IS THE FIX ---
-        # In non-interactive mode, we REQUIRE the user to specify what to run.
         if not args.tasks or not args.models:
-            print("Error: In non-interactive mode (-y), you must specify which tasks and models to run.", file=sys.stderr)
-            print("Use --tasks <task1> ... and --models <model1> ...", file=sys.stderr)
-            print("Use --list to see available options.", file=sys.stderr)
+            print(Style.BRIGHT + Fore.RED + "Error: In non-interactive mode (-y), you must specify which tasks and models to run.", file=sys.stderr)
+            print(Fore.YELLOW + "Use --tasks <task1> ... and --models <model1> ...", file=sys.stderr)
+            print(Fore.YELLOW + "Use --list to see available options.", file=sys.stderr)
             sys.exit(1)
-        
         tasks_to_run = args.tasks
         models_to_run = args.models
         is_verbose = args.verbose
     else:
-        # Interactive Mode remains the same
-        print("\nWelcome to the SecureDev-Bench Interactive CLI!", file=sys.stderr)
+        # Interactive Mode
+        print(Style.BRIGHT + Fore.GREEN + "\nWelcome to the SecureDev-Bench Interactive CLI!", file=sys.stderr)
         models_to_run = questionary.checkbox("Which models would you like to test?", choices=available_models).ask()
         if not models_to_run: sys.exit(0)
-        
         tasks_to_run = questionary.checkbox("Which tasks would you like to run?", choices=available_tasks).ask()
         if not tasks_to_run: sys.exit(0)
-        
         is_verbose = questionary.confirm("Enable verbose (real-time) logging?", default=False).ask()
 
     # --- Step 6: The Main Execution Loop ---
     all_results = []
     start_time = time.time()
-    print(f"\nStarting benchmark for {len(models_to_run)} model(s) against {len(tasks_to_run)} task(s)...", file=sys.stderr)
+    print(Style.BRIGHT + Fore.BLUE + f"\nStarting benchmark for {len(models_to_run)} model(s) against {len(tasks_to_run)} task(s)...", file=sys.stderr)
     for model_spec in models_to_run:
         provider, model = model_spec.split(":")
-        if not is_verbose: print(f"  - Testing model: {model_spec}", file=sys.stderr)
+        if not is_verbose: print(Fore.YELLOW + f"  - Testing model: {model_spec}", file=sys.stderr)
         for task in tasks_to_run:
             result_data = run_task(task, provider, model, verbose=is_verbose)
             all_results.append(result_data)
     total_duration = time.time() - start_time
-    print(f"\n✅ Benchmark complete. Total duration: {total_duration:.2f}s", file=sys.stderr)
+    print(Fore.GREEN + f"\n✅ Benchmark complete. Total duration: {total_duration:.2f}s", file=sys.stderr)
 
     # --- Step 7: Final Reporting ---
-    markdown_report = save_reports(all_results)
-    print("\n--- Benchmark Summary ---", file=sys.stderr)
-    print(markdown_report) # This is the only thing that goes to stdout
+    markdown_report_for_console = save_reports(all_results)
+    print(Style.BRIGHT + Fore.BLUE + "\n--- Benchmark Summary ---", file=sys.stderr)
+    # The final report to stdout is now colored for the console
+    print(markdown_report_for_console)
