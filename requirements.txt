@@ -1,3 +1,4 @@
 # Dependencies for running the benchmark harness and agent
 python-dotenv
 google-generativeai
+questionary
