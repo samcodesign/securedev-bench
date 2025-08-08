@@ -25,9 +25,8 @@ def main():
         -y, --non-interactive Run in non-interactive mode.
     Exits with status code 1 if no tasks or models are found.
     """
-
     # --- Step 1: Discover all available components ---
-    print("Discovering available tasks and models...")
+    print("Discovering available tasks and models...", file=sys.stderr)
     available_tasks = discover_tasks()
     provider_classes = discover_providers()
     available_models = discover_models(provider_classes)
@@ -35,60 +34,57 @@ def main():
     # --- Step 2: Set up the command-line argument parser ---
     parser = argparse.ArgumentParser(
         description="SecureDev-Bench: A benchmark for AI security agents.",
-        formatter_class=argparse.RawTextHelpFormatter # Improves help text formatting
+        formatter_class=argparse.RawTextHelpFormatter,
+        add_help=False
     )
-    parser.add_argument(
-        "--list", action="store_true", 
-        help="List available tasks and models (based on your .env keys) and exit."
-    )
-    parser.add_argument(
-        "--tasks", nargs='+', 
-        help="Run specific tasks. If not provided, all tasks will be run."
-    )
-    parser.add_argument(
-        "--models", nargs='+', 
-        help="Test specific models. If not provided, all available models will be tested."
-    )
-    parser.add_argument(
-        "-v", "--verbose", action="store_true", 
-        help="Enable verbose (real-time) logging for debugging."
-    )
-    parser.add_argument(
-        "-y", "--non-interactive", action="store_true", 
-        help="Run in non-interactive mode. Uses all available tasks/models unless specified otherwise."
-    )
+    info_group = parser.add_argument_group('Informational Commands')
+    info_group.add_argument("-h", "--help", action="store_true", help="Show this help message and exit.")
+    info_group.add_argument("--list", action="store_true", help="List available tasks and models and exit.")
+
+    run_group = parser.add_argument_group('Execution Control')
+    run_group.add_argument("--tasks", nargs='+', help="REQUIRED in non-interactive mode. Space-separated list of tasks to run.")
+    run_group.add_argument("--models", nargs='+', help="REQUIRED in non-interactive mode. Space-separated list of models to test.")
+    run_group.add_argument("-v", "--verbose", action="store_true", help="Enable verbose (real-time) logging to stderr.")
+    run_group.add_argument("-y", "--non-interactive", action="store_true", help="Run in non-interactive mode (requires --tasks and --models).")
+    
     args = parser.parse_args()
 
     # --- Step 3: Handle informational flags ---
+    if args.help:
+        parser.print_help(sys.stderr)
+        sys.exit(0)
+        
     if args.list:
-        print("\nAvailable Tasks:")
-        for task in available_tasks: print(f"  - {task}")
-        print("\nAvailable Models (based on your .env keys):")
-        for model in available_models: print(f"  - {model}")
+        print("\nAvailable Tasks:", file=sys.stderr)
+        for task in available_tasks: print(f"  - {task}", file=sys.stderr)
+        print("\nAvailable Models (based on your .env keys):", file=sys.stderr)
+        for model in available_models: print(f"  - {model}", file=sys.stderr)
         sys.exit(0)
 
-    # --- Step 4: CRITICAL ERROR HANDLING (This is the fix) ---
-    # This check runs for both interactive and non-interactive modes.
+    # --- Step 4: Robust Error Handling ---
     if not available_tasks:
-        print("\nError: No task directories found in the 'tasks/' folder.")
+        print("\nError: No task directories found in the 'tasks/' folder.", file=sys.stderr)
         sys.exit(1)
     if not available_models:
-        print("\nError: No models could be discovered.")
-        print("Please check that your API keys are correctly set in your .env file.")
+        print("\nError: No models could be discovered. Check your .env file and API keys.", file=sys.stderr)
         sys.exit(1)
 
     # --- Step 5: Determine tasks and models to run ---
-    tasks_to_run = []
-    models_to_run = []
-
     if args.non_interactive:
-        print("Running in non-interactive mode...")
-        tasks_to_run = args.tasks or available_tasks
-        models_to_run = args.models or available_models
+        # --- THIS IS THE FIX ---
+        # In non-interactive mode, we REQUIRE the user to specify what to run.
+        if not args.tasks or not args.models:
+            print("Error: In non-interactive mode (-y), you must specify which tasks and models to run.", file=sys.stderr)
+            print("Use --tasks <task1> ... and --models <model1> ...", file=sys.stderr)
+            print("Use --list to see available options.", file=sys.stderr)
+            sys.exit(1)
+        
+        tasks_to_run = args.tasks
+        models_to_run = args.models
         is_verbose = args.verbose
     else:
-        # Interactive Mode
-        print("\nWelcome to the SecureDev-Bench Interactive CLI!")
+        # Interactive Mode remains the same
+        print("\nWelcome to the SecureDev-Bench Interactive CLI!", file=sys.stderr)
         models_to_run = questionary.checkbox("Which models would you like to test?", choices=available_models).ask()
         if not models_to_run: sys.exit(0)
         
@@ -100,17 +96,17 @@ def main():
     # --- Step 6: The Main Execution Loop ---
     all_results = []
     start_time = time.time()
-    print(f"\nStarting benchmark for {len(models_to_run)} model(s) against {len(tasks_to_run)} task(s)...")
+    print(f"\nStarting benchmark for {len(models_to_run)} model(s) against {len(tasks_to_run)} task(s)...", file=sys.stderr)
     for model_spec in models_to_run:
         provider, model = model_spec.split(":")
-        if not is_verbose: print(f"  - Testing model: {model_spec}")
+        if not is_verbose: print(f"  - Testing model: {model_spec}", file=sys.stderr)
         for task in tasks_to_run:
             result_data = run_task(task, provider, model, verbose=is_verbose)
             all_results.append(result_data)
     total_duration = time.time() - start_time
-    print(f"\n✅ Benchmark complete. Total duration: {total_duration:.2f}s")
+    print(f"\n✅ Benchmark complete. Total duration: {total_duration:.2f}s", file=sys.stderr)
 
     # --- Step 7: Final Reporting ---
     markdown_report = save_reports(all_results)
-    print("\n--- Benchmark Summary ---")
-    print(markdown_report)
+    print("\n--- Benchmark Summary ---", file=sys.stderr)
+    print(markdown_report) # This is the only thing that goes to stdout
