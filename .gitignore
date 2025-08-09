@@ -206,5 +206,5 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-benchmark_reports.json
-benchmark_reports.md
+benchmark_report.json
+benchmark_report.md
