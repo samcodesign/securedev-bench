@@ -6,18 +6,6 @@ import shutil
 from pathlib import Path
 import sys
 
-def _get_subprocess_kwargs(verbose: bool):
-    """
-    Determines the correct stdout/stderr handling for subprocess calls
-    based on the verbose flag.
-    """
-    if verbose:
-        # In verbose mode, stream the output directly to the user's terminal in real-time.
-        return {'stdout': sys.stderr, 'stderr': sys.stderr, 'text': True}
-    else:
-        # In quiet mode, capture the output to be shown only on error.
-        return {'capture_output': True, 'text': True}
-
 def parse_pytest_report(report_path: Path) -> dict:
     """Parses the JSON report from pytest to categorize test results."""
     results = {"security_tests": {"passed": 0, "failed": 0, "total": 0}, "functional_tests": {"passed": 0, "failed": 0, "total": 0}, "overall_passed": True}
@@ -38,7 +26,7 @@ def parse_pytest_report(report_path: Path) -> dict:
     return results
 
 def run_task(task_id: str, provider: str, model: str, verbose: bool, tasks_dir="tasks") -> dict:
-    """The core engine for running a single task evaluation."""
+    """The core engine for running a single task evaluation with selective verbosity."""
     if verbose: print(f"\n--- Running Task: {task_id} | Provider: {provider} | Model: {model} ---")
     
     start_time = time.time()
@@ -48,8 +36,23 @@ def run_task(task_id: str, provider: str, model: str, verbose: bool, tasks_dir="
     image_name = f"securedev-bench-{task_id.lower()}"
     container_name = f"{image_name}-test"
     
-    # Get the correct subprocess arguments based on the verbose flag
-    subproc_kwargs = _get_subprocess_kwargs(verbose)
+    # --- THIS IS THE FIX: Define different arguments for different commands ---
+    # For commands we want to stream in verbose mode (agent, pytest)
+    stream_kwargs = {'check': True, 'text': True}
+    if verbose:
+        stream_kwargs.update({'stdout': sys.stderr, 'stderr': sys.stderr})
+    else:
+        stream_kwargs['capture_output'] = True
+
+    # For commands we ALWAYS want to be quiet (docker build)
+    quiet_kwargs = {'check': True, 'capture_output': True, 'text': True}
+    
+    # For the docker run command, where we handle the exit code manually
+    docker_run_kwargs = {'text': True}
+    if verbose:
+        docker_run_kwargs.update({'stdout': sys.stderr, 'stderr': sys.stderr})
+    else:
+        docker_run_kwargs['capture_output'] = True
 
     try:
         shutil.copytree(original_task_dir, temp_dir)
@@ -57,13 +60,14 @@ def run_task(task_id: str, provider: str, model: str, verbose: bool, tasks_dir="
         if verbose: print("[Harness]: Running real agent...")
         agent_path = Path.cwd() / "agent.py"
         target_file_path = temp_dir / "app.py"
-        subprocess.run([sys.executable, str(agent_path), str(target_file_path), "--provider", provider, "--model", model], check=True, **subproc_kwargs)
+        subprocess.run([sys.executable, str(agent_path), str(target_file_path), "--provider", provider, "--model", model], **stream_kwargs)
 
         if verbose: print("[Harness]: Building Docker container for testing...")
-        subprocess.run(["docker", "build", "-t", image_name, "."], cwd=temp_dir, check=True, **subproc_kwargs)
+        # The docker build command now uses the 'quiet_kwargs' to suppress its output
+        subprocess.run(["docker", "build", "-t", image_name, "."], cwd=temp_dir, **quiet_kwargs)
 
         if verbose: print("[Harness]: Running tests inside container...")
-        run_result = subprocess.run(["docker", "run", "-e", "API_KEY=DUMMY_KEY_FOR_TESTING", f"--name={container_name}", image_name], cwd=temp_dir, **subproc_kwargs)
+        run_result = subprocess.run(["docker", "run", "-e", "API_KEY=DUMMY_KEY_FOR_TESTING", f"--name={container_name}", image_name], cwd=temp_dir, **docker_run_kwargs)
 
         report_path_in_container = f"{container_name}:/usr/src/app/report.json"
         report_path_on_host = temp_dir / "report.json"
@@ -73,14 +77,16 @@ def run_task(task_id: str, provider: str, model: str, verbose: bool, tasks_dir="
         
         if run_result.returncode != 0:
             final_result = "TESTS_FAILED"
-            if verbose and run_result.stdout: # If verbose, output was already streamed. This is for the rare case it wasn't.
+            # If not in verbose mode, we need to print the captured output of the failed test run
+            if not verbose and run_result.stdout:
                 print(f"\n--- [Harness]: An error occurred inside the Docker container! ---\n{run_result.stdout}\n{run_result.stderr}")
         elif scorecard.get("overall_passed"):
             final_result = "SUCCESS"
 
     except subprocess.CalledProcessError as e:
         final_result = "HARNESS_FAILURE"
-        if not verbose: # Only print the captured output if we are in quiet mode
+        # In verbose mode, the error was already streamed. In quiet mode, we print the captured output.
+        if not verbose:
             print(f"\n--- [Harness]: A critical command failed! ---\nCOMMAND: {' '.join(e.cmd)}\n--- STDOUT ---\n{e.stdout}\n--- STDERR ---\n{e.stderr}")
     finally:
         subprocess.run(["docker", "rm", container_name], capture_output=True, check=False)
