@@ -19,10 +19,11 @@ def get_user(user_id):
     """Fetches a user from the database by their ID."""
     with sqlite3.connect(DB_FILE) as conn:
         cursor = conn.cursor()
-        # VULNERABILITY: The user_id is directly inserted into the SQL query string.
-        query = f"SELECT id, username, role FROM users WHERE id = {user_id}"
+        # FIX: Use a parameterized query. The '?' is a placeholder, and the
+        # database driver safely handles the user_id variable.
+        query = "SELECT id, username, role FROM users WHERE id = ?"
         try:
-            cursor.execute(query)
+            cursor.execute(query, (user_id,))
             user = cursor.fetchall()
             return jsonify(user)
         except sqlite3.Error as e:
