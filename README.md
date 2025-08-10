@@ -85,6 +85,7 @@ Topics include:
 * [How to Add a New AI Provider](/docs/02-adding-providers.md)
 * [Project Architecture](/docs/03-architecture.md)
 * [Interpreting the Results](/docs/04-interpreting-results.md)
+* [Contribute](/docs/05-contribute.md)
 
 ### Contributing
 
