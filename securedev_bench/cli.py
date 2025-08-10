@@ -9,6 +9,17 @@ from .reporting import save_reports
 from pyfiglet import Figlet, FigletFont
 import os
 
+
+
+def display_banner():
+    os.environ["PYFIGLET_FONT_DIR"] = "./fonts"
+    f = Figlet(font="ANSI_Shadow")
+    banner = f.renderText('SecureDev')
+    print(Style.BRIGHT + Fore.MAGENTA + banner, file=sys.stderr)
+    print(Fore.YELLOW + "A benchmark for the modern AI security agent.", file=sys.stderr)
+    print(Fore.CYAN + "Initializing SecureDev-Bench CLI...", file=sys.stderr)
+
+
 def main():
     """
     Entry point for the SecureDev-Bench CLI application.
@@ -29,15 +40,8 @@ def main():
     Exits with status code 1 if no tasks or models are found.
     """
     init(autoreset=True)
-
-    os.environ["PYFIGLET_FONT_DIR"] = "./fonts"
-    # --- NEW: Display the startup banner ---
-    f = Figlet(font="ANSI_SHADOW")
-    banner = f.renderText('SecureDev-Bench')
-    print(Style.BRIGHT + Fore.MAGENTA + banner, file=sys.stderr)
-    print(Fore.YELLOW + "A benchmark for the modern AI security agent.", file=sys.stderr)
-    # --- END of banner ---
-
+    display_banner()
+ 
     # --- Step 1: Discover all available components ---
     print(Fore.CYAN + "Discovering available tasks and models...", file=sys.stderr)
     available_tasks = discover_tasks()

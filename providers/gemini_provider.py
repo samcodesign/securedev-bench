@@ -14,8 +14,10 @@ class GeminiProvider(BaseProvider):
         super().__init__(api_key, model_name)
         genai.configure(api_key=self.api_key)
         
-        # Use the provided model name, or a sensible default.
-        self.model_name = model_name or 'gemini-1.5-flash'
+        # Use the provided model name or default to the first available model
+        self.model_name = model_name or 'gemini-1.5-pro'
+        if not self.model_name:
+            print(f"[Agent/Gemini]: No model specified, using default 'gemini-1.5-pro'.")
         
         print(f"[Agent/Gemini]: Initializing model: {self.model_name}")
         self.model = genai.GenerativeModel(self.model_name)
