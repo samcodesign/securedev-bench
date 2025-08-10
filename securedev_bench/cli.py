@@ -42,13 +42,13 @@ def main():
     init(autoreset=True)
     display_banner()
  
-    # --- Step 1: Discover all available components ---
+    # ---Discover all available components ---
     print(Fore.CYAN + "Discovering available tasks and models...", file=sys.stderr)
     available_tasks = discover_tasks()
     provider_classes = discover_providers()
     available_models = discover_models(provider_classes)
 
-    # --- Step 2: Set up the command-line argument parser ---
+    # ---Set up the command-line argument parser ---
     parser = argparse.ArgumentParser(
         description="SecureDev-Bench: A benchmark for AI security agents.",
         formatter_class=argparse.RawTextHelpFormatter,
@@ -66,7 +66,7 @@ def main():
     
     args = parser.parse_args()
 
-    # --- Step 3: Handle informational flags ---
+    # ---Handle informational flags ---
     if args.help:
         parser.print_help(sys.stderr)
         sys.exit(0)  
@@ -78,7 +78,7 @@ def main():
         for model in available_models: print(f"  - {model}", file=sys.stderr)
         sys.exit(0)
 
-    # --- Step 4: Robust Error Handling ---
+    # ---Robust Error Handling ---
     if not available_tasks:
         print(Style.BRIGHT + Fore.RED + "\nError: No task directories found in the 'tasks/' folder.", file=sys.stderr)
         sys.exit(1)
@@ -86,7 +86,7 @@ def main():
         print(Style.BRIGHT + Fore.RED + "\nError: No models could be discovered. Check your .env file and API keys.", file=sys.stderr)
         sys.exit(1)
 
-    # --- Step 5: Determine tasks and models to run ---
+    # ---Determine tasks and models to run ---
     if args.non_interactive:
         if not args.tasks or not args.models:
             print(Style.BRIGHT + Fore.RED + "Error: In non-interactive mode (-y), you must specify which tasks and models to run.", file=sys.stderr)
@@ -105,7 +105,7 @@ def main():
         if not tasks_to_run: sys.exit(0)
         is_verbose = questionary.confirm("Enable verbose (real-time) logging?", default=False).ask()
 
-    # --- Step 6: The Main Execution Loop ---
+    # ---The Main Execution Loop ---
     all_results = []
     start_time = time.time()
     print(Style.BRIGHT + Fore.BLUE + f"\nStarting benchmark for {len(models_to_run)} model(s) against {len(tasks_to_run)} task(s)...", file=sys.stderr)
@@ -118,7 +118,7 @@ def main():
     total_duration = time.time() - start_time
     print(Fore.GREEN + f"\n✅ Benchmark complete. Total duration: {total_duration:.2f}s", file=sys.stderr)
 
-    # --- Step 7: Final Reporting ---
+    # ---Final Reporting ---
     markdown_report_for_console = save_reports(all_results)
     print(Style.BRIGHT + Fore.BLUE + "\n--- Benchmark Summary ---", file=sys.stderr)
     # The final report to stdout is now colored for the console
