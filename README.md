@@ -9,6 +9,9 @@ SecureDev is a comprehensive, open-source evaluation platform designed to rigoro
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Code of Conduct](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
+---
+![showcase](/docs/assets/screenshot.png)
+
 ## Key Features
 
 * **Diverse Security Challenges:** Tests for a wide range of vulnerabilities, including Hardcoded Secrets, Command Injection, SQL Injection, and Cross-Site Scripting (XSS).
