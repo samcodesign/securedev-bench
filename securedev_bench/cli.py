@@ -52,7 +52,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="SecureDev-Bench: A benchmark for AI security agents.",
         formatter_class=argparse.RawTextHelpFormatter,
-        add_help=False
+        add_help=False 
     )
     info_group = parser.add_argument_group('Informational Commands')
     info_group.add_argument("-h", "--help", action="store_true", help="Show this help message and exit.")
@@ -69,7 +69,7 @@ def main():
     # --- Step 3: Handle informational flags ---
     if args.help:
         parser.print_help(sys.stderr)
-        sys.exit(0)
+        sys.exit(0)  
         
     if args.list:
         print(Style.BRIGHT + Fore.BLUE + "\nAvailable Tasks:", file=sys.stderr)
