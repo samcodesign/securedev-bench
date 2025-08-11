@@ -208,3 +208,4 @@ __marimo__/
 
 benchmark_report.json
 benchmark_report.md
+artifacts/*

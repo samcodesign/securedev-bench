@@ -63,6 +63,8 @@ def main():
     run_group.add_argument("--models", nargs='+', help="REQUIRED in non-interactive mode. Space-separated list of models to test.")
     run_group.add_argument("-v", "--verbose", action="store_true", help="Enable verbose (real-time) logging to stderr.")
     run_group.add_argument("-y", "--non-interactive", action="store_true", help="Run in non-interactive mode (requires --tasks and --models).")
+    run_group.add_argument("--keep-temp", action="store_true", help="Keep the temporary working directory after each task run for debugging.")
+    run_group.add_argument("--artifacts-dir", default="artifacts", help="Directory to store artifacts like modified app.py and report.json (default: artifacts).")
     
     args = parser.parse_args()
 
@@ -113,7 +115,14 @@ def main():
         provider, model = model_spec.split(":")
         if not is_verbose: print(Fore.YELLOW + f"  - Testing model: {model_spec}", file=sys.stderr)
         for task in tasks_to_run:
-            result_data = run_task(task, provider, model, verbose=is_verbose)
+            result_data = run_task(
+                task,
+                provider,
+                model,
+                verbose=is_verbose,
+                keep_temp=args.keep_temp,
+                artifacts_dir=args.artifacts_dir,
+            )
             all_results.append(result_data)
     total_duration = time.time() - start_time
     print(Fore.GREEN + f"\n✅ Benchmark complete. Total duration: {total_duration:.2f}s", file=sys.stderr)
