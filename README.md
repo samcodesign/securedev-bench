@@ -84,9 +84,11 @@ Topics include:
 * [How to Add a New Task](/docs/01-adding-tasks.md)
 * [How to Add a New AI Provider](/docs/02-adding-providers.md)
 * [Project Architecture](/docs/03-architecture.md)
+* [Cli Reference](/docs/07-cli-reference.md)
 * [Interpreting the Results](/docs/04-interpreting-results.md)
 * [Credibility Shield](/docs/06-credibility-shield.md)
 * [Contribute](/docs/05-contribute.md)
+
 
 ### Contributing
 
