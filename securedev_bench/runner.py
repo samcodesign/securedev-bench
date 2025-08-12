@@ -59,6 +59,7 @@ def run_task(
     tasks_dir: str = "tasks",
     keep_temp: bool = False,
     artifacts_dir: str = "artifacts",
+    save_artifacts: bool = True,
 ) -> dict:
     """
     The core engine for running a single task evaluation with selective verbosity.
@@ -71,6 +72,8 @@ def run_task(
         tasks_dir: Root directory containing tasks
         keep_temp: If True, do not delete the temporary work directory after run
         artifacts_dir: Directory on host to store artifacts like app.py and report.json
+        save_artifacts: If True, save modified app.py and report.json to artifacts_dir
+        
     """
     if verbose: print(f"\n--- Running Task: {task_id} | Provider: {provider} | Model: {model} ---", file=sys.stderr)
     
@@ -147,29 +150,30 @@ def run_task(
         if e.stderr: print(f"--- STDERR ---:\n{e.stderr}", file=sys.stderr)
             
     finally:
-        # Save artifacts (always attempt, regardless of result)
-        try:
-            artifacts_root = Path(artifacts_dir)
-            artifacts_root.mkdir(parents=True, exist_ok=True)
-            # Normalize model and provider for filenames
-            safe_model = model.replace(os.sep, "-").replace(":", "-")
-            safe_provider = provider.replace(os.sep, "-").replace(":", "-")
-            base_name = f"{task_id}_{int(start_time)}_{safe_provider}-{safe_model}"
-            # Copy modified app.py
-            source_app_path = temp_dir / "app.py"
-            if source_app_path.exists():
-                shutil.copyfile(source_app_path, artifacts_root / f"{base_name}_app.py")
-            # Copy report.json if present
-            host_report = temp_dir / "report.json"
-            if host_report.exists():
-                shutil.copyfile(host_report, artifacts_root / f"{base_name}_report.json")
-            # Optional helpful notice
-            if verbose or (final_result != "SUCCESS"):
-                print(f"[Harness]: Artifacts saved to '{artifacts_root.resolve()}' (prefix: {base_name})", file=sys.stderr)
-        except Exception as artifact_err:
-            # Never fail the run for artifact collection issues
-            if verbose:
-                print(f"[Harness]: Failed to save artifacts: {artifact_err}", file=sys.stderr)
+        # Save artifacts if enabled (attempt regardless of run result)
+        if save_artifacts:
+            try:
+                artifacts_root = Path(artifacts_dir)
+                artifacts_root.mkdir(parents=True, exist_ok=True)
+                # Normalize model and provider for filenames
+                safe_model = model.replace(os.sep, "-").replace(":", "-")
+                safe_provider = provider.replace(os.sep, "-").replace(":", "-")
+                base_name = f"{task_id}_{int(start_time)}_{safe_provider}-{safe_model}"
+                # Copy modified app.py
+                source_app_path = temp_dir / "app.py"
+                if source_app_path.exists():
+                    shutil.copyfile(source_app_path, artifacts_root / f"{base_name}_app.py")
+                # Copy report.json if present
+                host_report = temp_dir / "report.json"
+                if host_report.exists():
+                    shutil.copyfile(host_report, artifacts_root / f"{base_name}_report.json")
+                # Optional helpful notice
+                if verbose or (final_result != "SUCCESS"):
+                    print(f"[Harness]: Artifacts saved to '{artifacts_root.resolve()}' (prefix: {base_name})", file=sys.stderr)
+            except Exception as artifact_err:
+                # Never fail the run for artifact collection issues
+                if verbose:
+                    print(f"[Harness]: Failed to save artifacts: {artifact_err}", file=sys.stderr)
 
         # Cleanup
         subprocess.run(["docker", "rm", container_name], capture_output=True, check=False)

@@ -65,6 +65,7 @@ def main():
     run_group.add_argument("-y", "--non-interactive", action="store_true", help="Run in non-interactive mode (requires --tasks and --models).")
     run_group.add_argument("--keep-temp", action="store_true", help="Keep the temporary working directory after each task run for debugging.")
     run_group.add_argument("--artifacts-dir", default="artifacts", help="Directory to store artifacts like modified app.py and report.json (default: artifacts).")
+    run_group.add_argument("--no-artifacts", action="store_true", help="Do not save artifacts (overrides --artifacts-dir).")
     
     args = parser.parse_args()
 
@@ -80,7 +81,7 @@ def main():
         for model in available_models: print(f"  - {model}", file=sys.stderr)
         sys.exit(0)
 
-    # ---Robust Error Handling ---
+    # ---Error Handling ---
     if not available_tasks:
         print(Style.BRIGHT + Fore.RED + "\nError: No task directories found in the 'tasks/' folder.", file=sys.stderr)
         sys.exit(1)
@@ -106,6 +107,12 @@ def main():
         tasks_to_run = questionary.checkbox("Which tasks would you like to run?", choices=available_tasks).ask()
         if not tasks_to_run: sys.exit(0)
         is_verbose = questionary.confirm("Enable verbose (real-time) logging?", default=False).ask()
+        # New interactive toggles
+        keep_temp_choice = questionary.confirm("Keep temporary directories after each run?", default=False).ask()
+        save_artifacts_choice = questionary.confirm("Save artifacts (modified app.py and report.json)?", default=True).ask()
+        artifacts_dir_choice = None
+        if save_artifacts_choice:
+            artifacts_dir_choice = questionary.text("Artifacts output directory:", default="artifacts").ask()
 
     # ---The Main Execution Loop ---
     all_results = []
@@ -120,8 +127,9 @@ def main():
                 provider,
                 model,
                 verbose=is_verbose,
-                keep_temp=args.keep_temp,
-                artifacts_dir=args.artifacts_dir,
+                keep_temp=(args.keep_temp if args.non_interactive else keep_temp_choice),
+                artifacts_dir=(args.artifacts_dir if args.non_interactive else (artifacts_dir_choice or "artifacts")),
+                save_artifacts=(False if args.no_artifacts else (save_artifacts_choice if not args.non_interactive else True)),
             )
             all_results.append(result_data)
     total_duration = time.time() - start_time
@@ -130,5 +138,4 @@ def main():
     # ---Final Reporting ---
     markdown_report_for_console = save_reports(all_results)
     print(Style.BRIGHT + Fore.BLUE + "\n--- Benchmark Summary ---", file=sys.stderr)
-    # The final report to stdout is now colored for the console
     print(markdown_report_for_console)
