@@ -1,4 +1,5 @@
 import google.generativeai as genai
+
 from .base_provider import BaseProvider
 
 SYSTEM_PROMPT = """
@@ -7,18 +8,19 @@ Do not explain the vulnerability. Do not add any comments or introductory text.
 Respond ONLY with the complete, corrected code for the file.
 """
 
+
 class GeminiProvider(BaseProvider):
     """Provider for Google's Gemini models."""
 
     def __init__(self, api_key: str, model_name: str = None):
         super().__init__(api_key, model_name)
         genai.configure(api_key=self.api_key)
-        
+
         # Use the provided model name or default to the first available model
-        self.model_name = model_name or 'gemini-1.5-pro'
+        self.model_name = model_name or "gemini-1.5-pro"
         if not self.model_name:
-            print(f"[Agent/Gemini]: No model specified, using default 'gemini-1.5-pro'.")
-        
+            print("[Agent/Gemini]: No model specified, using default 'gemini-1.5-pro'.")
+
         print(f"[Agent/Gemini]: Initializing model: {self.model_name}")
         self.model = genai.GenerativeModel(self.model_name)
 
@@ -29,9 +31,9 @@ class GeminiProvider(BaseProvider):
             full_prompt = f"{SYSTEM_PROMPT}\n\n--- VULNERABLE CODE ---\n{vulnerable_code}"
             response = self.model.generate_content(full_prompt)
             corrected_code = response.text
-            cleaned_code = corrected_code.strip().strip('`')
+            cleaned_code = corrected_code.strip().strip("`")
             if cleaned_code.startswith("python"):
-                cleaned_code = cleaned_code[len("python\n"):].strip()
+                cleaned_code = cleaned_code[len("python\n") :].strip()
             return cleaned_code
         except Exception as e:
             print(f"[Agent/Gemini]: ERROR - Failed to get response from Gemini: {e}")
@@ -46,9 +48,9 @@ class GeminiProvider(BaseProvider):
             available_models = []
             for m in genai.list_models():
                 # We only want models that support content generation
-                if 'generateContent' in m.supported_generation_methods:
+                if "generateContent" in m.supported_generation_methods:
                     # The API returns 'models/gemini-1.5-pro', we just want 'gemini-1.5-pro'
-                    model_name = m.name.split('/')[-1]
+                    model_name = m.name.split("/")[-1]
                     available_models.append(model_name)
             return available_models
         except Exception as e:

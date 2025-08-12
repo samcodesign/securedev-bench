@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 
+
 class BaseProvider(ABC):
     """Abstract base class for all AI model providers."""
-    
+
     def __init__(self, api_key: str, model_name: str = None):
         if not api_key:
             raise ValueError(f"{self.__class__.__name__} requires an API key.")
