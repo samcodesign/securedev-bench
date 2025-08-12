@@ -5,11 +5,12 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
-
 from providers.gemini_provider import GeminiProvider
 
 # from providers.openai_provider import OpenAIProvider
+
+# Load environment variables from .env
+load_dotenv()
 
 SUPPORTED_PROVIDERS = {
     "gemini": GeminiProvider,

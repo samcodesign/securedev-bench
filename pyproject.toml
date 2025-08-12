@@ -15,6 +15,9 @@ select = [
   "B",   # flake8-bugbear
   "UP",  # pyupgrade
 ]
+ignore = [
+  "E501",  # line too long (we intentionally allow long prompts/messages)
+]
 
 [tool.ruff.lint.isort]
 known-first-party = ["securedev_bench", "providers"]
