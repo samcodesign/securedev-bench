@@ -21,7 +21,7 @@ def display_banner():
 
 
 def main():
-    """ --------------- DOCUMENTATION --------------------------------
+    """
     Entry point for the SecureDev-Bench CLI application.
     This function orchestrates the benchmarking process for AI security agents by:
     1. Discovering available tasks and models based on the user's environment and configuration.
