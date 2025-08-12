@@ -1,0 +1,24 @@
+[tool.ruff]
+target-version = "py39"
+line-length = 100
+extend-exclude = [
+  "tasks",
+  "venv",
+  "artifacts",
+]
+
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle errors
+  "F",   # pyflakes
+  "I",   # import sorting (isort)
+  "B",   # flake8-bugbear
+  "UP",  # pyupgrade
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["securedev_bench", "providers"]
+
+[tool.ruff.format]
+docstring-code-format = true
+

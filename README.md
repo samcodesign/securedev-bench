@@ -89,7 +89,6 @@ Topics include:
 * [Credibility Shield](/docs/06-credibility-shield.md)
 * [Contribute](/docs/05-contribute.md)
 
-
 ### Contributing
 
 Contributions are welcome. Please review the guides in /docs before submitting changes. All contributors must follow the [Code of Conduct](/CODE_OF_CONDUCT.md).
