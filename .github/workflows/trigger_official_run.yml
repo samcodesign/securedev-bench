@@ -1,0 +1,38 @@
+name: Trigger Official Benchmark Run
+
+# This workflow is triggered by an API call, which our local CLI will make.
+on:
+  workflow_dispatch:
+    inputs:
+      model_to_test:
+        description: 'The model to test (e.g., gemini:gemini-1.5-pro)'
+        required: true
+      run_uuid:
+        description: 'The unique ID for this run, provided by the local CLI.'
+        required: true
+
+jobs:
+  trigger-private-run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Request to Private Runner
+        # We use a trusted, popular third-party action to handle the dispatch.
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          # This uses the secure key we created in Step 1.
+          token: ${{ secrets.PRIVATE_REPO_DISPATCH_TOKEN }}
+          
+          # IMPORTANT: Change this to your username and private repo name.
+          repository: samcodesign/securedev-bench-private-tasks
+          
+          # This is the "name" of the event we are sending. The private
+          # workflow will be configured to listen for this exact event name.
+          event-type: run-benchmark
+          
+          # This is the data payload. We pass along the user's choices
+          # securely to the private workflow.
+          client-payload: >
+            {
+              "model_to_test": "${{ github.event.inputs.model_to_test }}",
+              "run_uuid": "${{ github.event.inputs.run_uuid }}"
+            }
