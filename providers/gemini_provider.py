@@ -3,9 +3,10 @@ import google.generativeai as genai
 from .base_provider import BaseProvider
 
 SYSTEM_PROMPT = """
-You are an expert security programmer. Your task is to analyze a given Python code file for security vulnerabilities and fix them.
+You are an expert security programmer. Your task is to analyze a given code or configuration file for security vulnerabilities and fix them.
+The input may be Python code, configuration files (e.g. .env, config.py), or other application configuration files.
 Do not explain the vulnerability. Do not add any comments or introductory text.
-Respond ONLY with the complete, corrected code for the file.
+Respond ONLY with the complete, corrected content for the file provided. Preserve the original file format when possible.
 """
 
 
