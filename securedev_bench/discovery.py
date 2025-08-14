@@ -7,16 +7,60 @@ from providers.base_provider import BaseProvider  # <--- FIX 1: Import the class
 
 
 def discover_tasks(tasks_dir="tasks"):
-    """Finds all valid task directories."""
-    if not os.path.isdir(tasks_dir):
-        return []
-    return sorted(
-        [
-            d
-            for d in os.listdir(tasks_dir)
-            if os.path.isdir(Path(tasks_dir) / d) and d.startswith("task-")
-        ]
-    )
+    """
+    Finds all valid task directories and their variants.
+
+    Returns a dict where:
+    - Keys are task IDs (e.g., 'task-001-hardcoded-key')
+    - Values are lists of variant paths (e.g., ['var-01', 'var-02'] or [] if no variants)
+    """
+    # Accept either a direct tasks directory, or a repo root that contains a `tasks/` folder.
+    path = Path(tasks_dir)
+    if path.is_dir() and (path / "tasks").is_dir():
+        path = path / "tasks"
+
+    if not path.is_dir():
+        return {}
+
+    tasks = {}
+    for d in os.listdir(path):
+        task_path = path / d
+        if not task_path.is_dir() or not d.startswith("task-"):
+            continue
+
+        # Check if this task has variants
+        variants = []
+        for subdir in task_path.iterdir():
+            if subdir.is_dir() and subdir.name.startswith("var-"):
+                variants.append(subdir.name)
+
+        # If no variants found, this is a standard task (empty list)
+        # If variants found, this is a variant-based task
+        tasks[d] = sorted(variants) if variants else []
+
+    return tasks
+
+
+def get_task_path(task_id: str, variant: str = None, tasks_dir: str = "tasks") -> Path:
+    """
+    Gets the full path to a task or task variant.
+
+    Args:
+        task_id: The task directory name (e.g., 'task-001-hardcoded-key')
+        variant: The variant name (e.g., 'var-01') or None for standard tasks
+        tasks_dir: Root tasks directory
+
+    Returns:
+        Path to the task directory (with variant if specified)
+    """
+    # Handle case where caller passed a repository root that contains a `tasks/` folder
+    path = Path(tasks_dir)
+    if path.is_dir() and (path / "tasks").is_dir():
+        path = path / "tasks"
+
+    if variant:
+        return path / task_id / variant
+    return path / task_id
 
 
 def discover_providers():
