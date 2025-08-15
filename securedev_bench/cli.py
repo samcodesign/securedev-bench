@@ -219,6 +219,8 @@ def main():
     # ---Prepare tasks root: local dir or a cloned repo---
     cloned_tasks_dir = None
     tasks_root = args.tasks_dir
+    # Track whether the tasks source was cloned/remote (affects keep-temp prompt)
+    tasks_source_is_remote = False
 
     # Interactive users can choose a tasks source if not explicitly provided
     if not args.non_interactive and not args.tasks_repo and args.tasks_dir == "tasks":
@@ -230,9 +232,11 @@ def main():
                 "Clone tasks repository (Git URL)",
             ],
         ).ask()
+
         if source_choice == "Specify local directory path":
             custom_dir = questionary.text("Enter path to tasks directory:", default="tasks").ask()
             tasks_root = custom_dir or "tasks"
+
         elif source_choice == "Clone tasks repository (Git URL)":
             repo_input = questionary.text("Enter Git URL (SSH or HTTPS):").ask()
             ref_input = questionary.text(
@@ -257,6 +261,7 @@ def main():
                     clone_cmd += [repo_url, cloned_tasks_dir]
                     subprocess.run(clone_cmd, check=True, capture_output=True, text=True)
                     tasks_root = cloned_tasks_dir
+                    tasks_source_is_remote = True
                 except subprocess.CalledProcessError as e:
                     print(
                         Style.BRIGHT + Fore.RED + "\nError: Failed to clone tasks repository.",
@@ -290,6 +295,7 @@ def main():
             clone_cmd += [repo_url, cloned_tasks_dir]
             subprocess.run(clone_cmd, check=True, capture_output=True, text=True)
             tasks_root = cloned_tasks_dir
+            tasks_source_is_remote = True
         except subprocess.CalledProcessError as e:
             print(
                 Style.BRIGHT + Fore.RED + "\nError: Failed to clone tasks repository.",
@@ -388,9 +394,12 @@ def main():
             sys.exit(0)
         is_verbose = questionary.confirm("Enable verbose (real-time) logging?", default=False).ask()
         # New interactive toggles
-        keep_temp_choice = questionary.confirm(
-            "Keep temporary directories after each run?", default=False
-        ).ask()
+        # Only ask about keeping temporary directories when tasks were cloned (remote source).
+        keep_temp_choice = False
+        if tasks_source_is_remote:
+            keep_temp_choice = questionary.confirm(
+                "Keep temporary directories after each run?", default=False
+            ).ask()
         save_artifacts_choice = questionary.confirm(
             "Save artifacts (modified app.py and report.json)?", default=True
         ).ask()
