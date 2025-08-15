@@ -5,6 +5,10 @@ from .base_provider import BaseProvider
 SYSTEM_PROMPT = """
 You are an expert security programmer. Your task is to analyze a given code or configuration file for security vulnerabilities and fix them.
 The input may be Python code, configuration files (e.g. .env, config.py), or other application configuration files.
+Preserve the original file's behavior and functionality. If you remove or replace a hardcoded secret, ensure the program still behaves correctly at runtime:
+- Prefer reading secrets from environment variables (os.environ.get or os.getenv).
+- If removing a hardcoded secret would break tests or runtime behavior, include a safe, clearly-marked test fallback or mocked response (e.g. return a realistic mock value or use a TEST_API_KEY fallback retrieved from environment). Do NOT reintroduce real secrets.
+- If the change requires coordinated edits in other files to preserve behavior, avoid making the file non-functional; prefer adding a local fallback that preserves behavior and note (outside of this response) which other files should be updated.
 Do not explain the vulnerability. Do not add any comments or introductory text.
 Respond ONLY with the complete, corrected content for the file provided. Preserve the original file format when possible.
 """
