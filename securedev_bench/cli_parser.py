@@ -18,7 +18,7 @@ def interactive_selection(
     available_tasks: dict[str, list[str]],
     available_models: list[str],
     tasks_source_is_remote: bool,
-) -> tuple[list[str], list[str], bool, bool, bool, Optional[str]]:
+) -> tuple[list[str], list[str], bool, bool, bool, Optional[str], bool, int]:
     """Decide tasks/models to run and interactive toggles; returns selections.
 
     Returns: (tasks_to_run, models_to_run, is_verbose, keep_temp_choice, save_artifacts_choice, artifacts_dir_choice)
@@ -33,15 +33,29 @@ def interactive_selection(
             info(Fore.YELLOW + "Use --tasks <task1> ... and --models <model1> ...")
             info(Fore.YELLOW + "Use --list to see available options.")
             sys.exit(1)
-        return args.tasks, args.models, args.verbose, False, False, None
+        return args.tasks, args.models, args.verbose, False, False, None, False, 2
 
     # Interactive mode
     info(Style.BRIGHT + Fore.GREEN + "\nWelcome to the SecureDev-Bench Interactive CLI!")
-    models_to_run = questionary.checkbox(
-        "Which models would you like to test?", choices=available_models
-    ).ask()
-    if not models_to_run:
-        sys.exit(0)
+    # If there's only one available model, auto-select it to avoid an extra prompt
+    if len(available_models) == 1:
+        models_to_run = available_models
+    else:
+        models_to_run = questionary.checkbox(
+            "Which models would you like to test?", choices=available_models
+        ).ask()
+        # If the interactive checkbox returned None or empty (user cancelled or no choice),
+        # give one chance to retry before exiting.
+        if not models_to_run:
+            retry = questionary.confirm(
+                "No models selected. Retry model selection?", default=True
+            ).ask()
+            if retry:
+                models_to_run = questionary.checkbox(
+                    "Which models would you like to test?", choices=available_models
+                ).ask()
+            if not models_to_run:
+                sys.exit(0)
 
     # Build task choices with variants
     task_choices = []
@@ -52,11 +66,31 @@ def interactive_selection(
         else:
             task_choices.append(task_id)
 
+    # Offer a convenient "run all" sentinel at the end of the list
+    ALL_MARKER = "<ALL_TASKS> (Run all tasks)"
+    choices_with_all = task_choices + [ALL_MARKER]
+
     tasks_to_run = questionary.checkbox(
-        "Which tasks would you like to run?", choices=task_choices
+        "Which tasks would you like to run?", choices=choices_with_all
     ).ask()
     if not tasks_to_run:
         sys.exit(0)
+
+    # If user picked the ALL_MARKER, expand to all tasks
+    if ALL_MARKER in tasks_to_run:
+        tasks_to_run = task_choices
+
+    # Ask whether to run in parallel or sequentially and worker count
+    run_in_parallel = questionary.confirm(
+        "Run the selected tasks in parallel?", default=False
+    ).ask()
+    workers = 2
+    if run_in_parallel:
+        worker_raw = questionary.text("Number of parallel workers:", default="2").ask()
+        try:
+            workers = max(1, int(worker_raw))
+        except Exception:
+            workers = 2
 
     is_verbose = questionary.confirm("Enable verbose (real-time) logging?", default=False).ask()
 
@@ -82,6 +116,8 @@ def interactive_selection(
         keep_temp_choice,
         save_artifacts_choice,
         artifacts_dir_choice,
+        run_in_parallel,
+        workers,
     )
 
 

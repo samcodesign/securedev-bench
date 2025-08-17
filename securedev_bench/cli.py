@@ -37,6 +37,18 @@ def main():
     provider_classes = discover_providers()
     available_models = discover_models(provider_classes)
 
+    # If model discovery returned nothing, retry with a longer timeout once.
+    if not available_models:
+        info(
+            Fore.YELLOW
+            + "No models found on first pass; retrying model discovery with extended timeout..."
+        )
+        # discover_models accepts an optional timeout_seconds arg
+        try:
+            available_models = discover_models(provider_classes, timeout_seconds=30)
+        except Exception:
+            available_models = []
+
     # Robust error handling
     if not available_tasks:
         error(
@@ -59,7 +71,17 @@ def main():
         keep_temp_choice,
         save_artifacts_choice,
         artifacts_dir_choice,
+        run_in_parallel,
+        workers,
     ) = interactive_selection(args, available_tasks, available_models, tasks_source_is_remote)
+
+    # Handle user cancellation or empty selections from interactive prompts
+    if not models_to_run:
+        info("No models selected or selection cancelled. Exiting.")
+        sys.exit(0)
+    if not tasks_to_run:
+        info("No tasks selected or selection cancelled. Exiting.")
+        sys.exit(0)
 
     # Execute benchmark
     all_results, total_duration = execute_benchmark(
@@ -71,6 +93,8 @@ def main():
         keep_temp_choice,
         save_artifacts_choice,
         artifacts_dir_choice,
+        run_in_parallel=run_in_parallel,
+        workers=workers,
     )
 
     success(Fore.GREEN + f"\n✅ Benchmark complete. Total duration: {total_duration:.2f}s")
