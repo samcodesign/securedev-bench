@@ -87,14 +87,19 @@ python run_benchmark.py -y \
 - **--list-task-repo <git_url>**: List tasks from a private repository and exit. Use with `--tasks-ref` for specific branch.
 - **--list-task-dir [path]**: List tasks from a local directory and exit (default: `tasks`).
 
-- **--tasks <list>**: Space‑separated list of task IDs to run. Required with `-y`.
+- **--tasks**: Space‑separated list of task IDs to run. Required with `-y`.
   - Example: `--tasks task-001-hardcoded-key task-005-insecure-deserialization/var-01`
 
-- **--models <list>**: Space‑separated list of model specs to test. Required with `-y`.
+- **--models**: Space‑separated list of model specs to test. Required with `-y`.
   - Format: `provider:model_name`
   - Examples: `gemini:gemini-2.5-pro`, `gemini:gemini-2.0-flash-thinking-exp`
 
+  Example: `--models gemini:gemini-2.5-pro openai:gpt-4o-mini`
+
 - **--verbose, -v**: Stream detailed logs to stderr (agent output, Docker build/run logs, pytest output).
+
+- **--parallel**: (new) When running non-interactively (`-y`), enable parallel execution of the selected tasks.
+- **-j, --workers N**: (new) Number of parallel workers to use when `--parallel` is specified. Default: 2.
 
 - **--non-interactive, -y**: Run without prompts. Requires `--tasks` and `--models`.
 
@@ -102,13 +107,21 @@ python run_benchmark.py -y \
   - Default: disabled
   - When enabled, the CLI prints the temp path on completion.
 
-- **--artifacts-dir <path>**: Directory to save lightweight artifacts (see below).
+- **--artifacts-dir**: Directory to save lightweight artifacts (see below).
   - Default: `artifacts`
   - Effective only if artifact saving is enabled.
+
+If you prefer scripted parallel runs (CI pipelines or large benchmarks), combine `-y`, `--parallel` and `-j`:
+
+```bash
+python run_benchmark.py -y --tasks task-001-hardcoded-key --models gemini:gemini-2.5-pro --parallel -j 4
+```
 
 - **--no-artifacts**: Disable saving artifacts.
   - Default: saving artifacts is enabled in non‑interactive runs
   - In interactive mode, you control this via a prompt.
+
+Interactive helper: the task chooser includes a convenient "Run all tasks" option at the end of the tasks list to quickly select every available task (including variants). After choosing tasks you will be prompted whether to run them in parallel and with how many workers; in non-interactive mode use `--parallel` and `-j/--workers`.
 
 ## Artifacts
 

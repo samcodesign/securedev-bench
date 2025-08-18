@@ -140,6 +140,11 @@ These statuses are produced by the harness and surfaced in Markdown/JSON reports
 - [ ] No secrets in code, logs, or tests; reproducible Docker build
 - [ ] Docs updated where user‑visible behavior changed
 
+Recommended additions for PRs that touch the harness or providers:
+
+- [ ] Attach a `benchmark_report.json` from a non-interactive run demonstrating the change (or paste relevant excerpt).
+- [ ] Update `.env.example` to include any new provider environment variables required by the change.
+
 ### Getting Help
 
 - Use issues for bugs and feature proposals; tag with the relevant `area:` label.

@@ -10,3 +10,16 @@ The final summary table provides an overview of the benchmark run. The `Result` 
   - The code contained a syntax error, causing the test suite to crash.
 
 - **`HARNESS_FAILURE`**: An error occurred in the benchmark harness itself. This usually indicates a problem with the environment (e.g., Docker is not running) or a bug in the benchmark's own scripts.
+
+## Example result row
+
+The JSON/Markdown reports include per-model, per-task rows. An example Markdown table row looks like:
+
+| Task | Model | Result | Security (passed/total) | Functionality (passed/total) | Duration (s) |
+|------|-------|--------|------------------------:|-----------------------------:|-------------:|
+| task-001-hardcoded-key | gemini:gemini-2.5-pro | SUCCESS | 1/1 | 3/3 | 12.3 |
+
+Notes:
+
+ - `Result` is one of `SUCCESS`, `TESTS_FAILED`, or `HARNESS_FAILURE`.
+ - The CLI does not exit with a non-zero code for individual task failures; the overall process exit code only indicates CLI usage or environment errors.

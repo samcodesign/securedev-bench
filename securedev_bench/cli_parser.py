@@ -33,7 +33,16 @@ def interactive_selection(
             info(Fore.YELLOW + "Use --tasks <task1> ... and --models <model1> ...")
             info(Fore.YELLOW + "Use --list to see available options.")
             sys.exit(1)
-        return args.tasks, args.models, args.verbose, False, False, None, False, 2
+        return (
+            args.tasks,
+            args.models,
+            args.verbose,
+            False,
+            False,
+            None,
+            bool(args.parallel),
+            int(args.workers or 2),
+        )
 
     # Interactive mode
     info(Style.BRIGHT + Fore.GREEN + "\nWelcome to the SecureDev-Bench Interactive CLI!")
@@ -159,6 +168,18 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run_group.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose (real-time) logging to stderr."
+    )
+    run_group.add_argument(
+        "--parallel",
+        action="store_true",
+        help="Run selected tasks in parallel (non-interactive mode can set this).",
+    )
+    run_group.add_argument(
+        "-j",
+        "--workers",
+        type=int,
+        default=2,
+        help="Number of parallel workers when --parallel is used (default: 2).",
     )
     run_group.add_argument(
         "-y",
