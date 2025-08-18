@@ -20,6 +20,8 @@ SecureDev is a comprehensive, open-source evaluation platform designed to rigoro
 * **Professional Interactive CLI:** A user-friendly, interactive command-line interface that makes running tests and comparing models simple and intuitive.
 * **Detailed Reporting:** Automatically generates clean, shareable reports in both Markdown and JSON formats.
 
+Note: the CLI supports parallel, non-interactive runs via `--parallel` and `-j/--workers` for faster CI or bulk benchmarking — see `docs/07-cli-reference.md` for details.
+
 ## Getting Started
 
 ### Prerequisites

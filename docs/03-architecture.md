@@ -8,6 +8,11 @@ SecureDev is designed to be modular and maintainable. Here is a high-level overv
 
 - **`securedev_bench/`**: The core library for the benchmark.
   - **`cli.py`**: Handles all user interaction, including the interactive prompts (`questionary`) and non-interactive flags (`argparse`). This is the main orchestrator.
+  - **New (refactor)**: `cli.py` is now a small orchestrator that delegates responsibilities to helper modules for clarity and testability:
+    - `cli_parser.py` — builds the `argparse` parser and contains interactive selection helpers.
+    - `tasks_source.py` — handles locating or cloning task repositories and preparing task roots.
+    - `executor.py` — runs the benchmark across (task, model) pairs, supports parallel execution configured via `--parallel` and `-j/--workers`.
+    - `console.py` — centralized logging/console helpers; `--verbose` toggles streaming of subprocess output.
   - **`discovery.py`**: Contains all logic for dynamically finding available tasks and models.
   - **`runner.py`**: Contains the core engine for running a single benchmark task, including setting up the environment, running the agent, building and running Docker, and parsing results.
   - **`reporting.py`**: Contains all logic for generating the final Markdown and JSON report files.

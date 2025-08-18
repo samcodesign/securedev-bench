@@ -1,5 +1,7 @@
 import json
 
+from .console import success
+
 
 def generate_markdown_report(results: list) -> str:
     header = "| Model | Task | Result | Security Score | Functionality Score | Duration (s) |\n"
@@ -19,5 +21,5 @@ def save_reports(results: list, base_filename: str = "benchmark_report"):
     markdown_report = generate_markdown_report(results)
     with open(md_filename, "w") as f:
         f.write(markdown_report)
-    print(f"\nReports saved to {md_filename} and {json_filename}")
+    success(f"\nReports saved to {md_filename} and {json_filename}")
     return markdown_report

@@ -5,6 +5,8 @@ from pathlib import Path
 
 from providers.base_provider import BaseProvider  # <--- FIX 1: Import the class directly
 
+from .console import info, warn
+
 
 def discover_tasks(tasks_dir="tasks"):
     """
@@ -84,15 +86,34 @@ def discover_providers():
     return provider_classes
 
 
-def discover_models(provider_classes: dict):
-    """Checks API keys and asks each provider to list its available models."""
+def discover_models(provider_classes: dict, timeout_seconds: int = 10):
+    """Checks API keys and asks each provider to list its available models.
+
+    Each provider's `list_models` call is executed with a timeout to avoid hangs
+    when a remote API is slow or unreachable. On timeout or error we skip that
+    provider and continue.
+    """
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError
+
     available_models = []
     for name, provider_class in provider_classes.items():
         api_key_env = f"{name.upper()}_API_KEY"
         api_key = os.environ.get(api_key_env)
-        if api_key:
-            print(f"[Discovery]: Found API key for {name.upper()}, fetching models...")
-            models = provider_class.list_models(api_key)
-            for model in models:
-                available_models.append(f"{name}:{model}")
+        if not api_key:
+            continue
+        info(f"[Discovery]: Found API key for {name.upper()}, fetching models...")
+        try:
+            with ThreadPoolExecutor(max_workers=1) as ex:
+                fut = ex.submit(provider_class.list_models, api_key)
+                models = fut.result(timeout=timeout_seconds)
+        except TimeoutError:
+            warn(f"Timeout ({timeout_seconds}s) while fetching models for provider {name}. Skipping.")
+            models = []
+        except Exception as e:
+            warn(f"Failed to fetch models for provider {name}: {e}")
+            models = []
+
+        for model in models or []:
+            available_models.append(f"{name}:{model}")
+
     return available_models
