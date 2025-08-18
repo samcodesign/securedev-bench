@@ -107,7 +107,7 @@ def discover_models(provider_classes: dict, timeout_seconds: int = 10):
                 fut = ex.submit(provider_class.list_models, api_key)
                 models = fut.result(timeout=timeout_seconds)
         except TimeoutError:
-            warn(f"Timeout while fetching models for provider {name}. Skipping.")
+            warn(f"Timeout ({timeout_seconds}s) while fetching models for provider {name}. Skipping.")
             models = []
         except Exception as e:
             warn(f"Failed to fetch models for provider {name}: {e}")
