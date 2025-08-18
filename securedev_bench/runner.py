@@ -3,6 +3,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -65,6 +66,8 @@ def run_task(
     keep_temp: bool = False,
     artifacts_dir: str = "artifacts",
     save_artifacts: bool = True,
+    variant: str = None,
+    tasks_root: str = None,
 ) -> dict:
     """
     The core engine for running a single task evaluation with selective verbosity.
@@ -78,24 +81,36 @@ def run_task(
         keep_temp: If True, do not delete the temporary work directory after run
         artifacts_dir: Directory on host to store artifacts like app.py and report.json
         save_artifacts: If True, save modified app.py and report.json to artifacts_dir
-
+        variant: Optional variant name (e.g., 'var-01') for variant-based tasks
+        tasks_root: Root directory for task discovery (may be different from tasks_dir)
+    Returns:
+        A dictionary with the result of the task run, including model ID, task ID,
     """
-    if verbose:
-        print(
-            f"\n--- Running Task: {task_id} | Provider: {provider} | Model: {model} ---",
-            file=sys.stderr,
+    from .console import info
+    from .console import is_verbose as console_verbose
+
+    if verbose or console_verbose():
+        info(
+            f"\n--- Running Task: {task_id}{f' (variant: {variant})' if variant else ''} | Provider: {provider} | Model: {model} ---"
         )
 
     start_time = time.time()
-    original_task_dir = Path(tasks_dir) / task_id
-    temp_dir = Path(f"/tmp/{task_id}_{int(start_time)}").resolve()
+    # Use the new get_task_path function to handle variants
+    from .discovery import get_task_path
+
+    # Use tasks_root if provided, otherwise fall back to tasks_dir
+    actual_tasks_dir = tasks_root if tasks_root else tasks_dir
+    original_task_dir = get_task_path(task_id, variant, actual_tasks_dir)
+    # Create a platform-safe temporary directory for the run
+    temp_dir_path = tempfile.mkdtemp(prefix=f"sdb_{task_id}_")
+    temp_dir = Path(temp_dir_path)
     final_result, scorecard = "FAILED", {}
     image_name = f"securedev-bench-{task_id.lower()}"
     container_name = f"{image_name}-test"
 
     # Define subprocess arguments for streaming output in verbose mode
     stream_kwargs = {"check": True, "text": True, "encoding": "utf-8"}
-    if verbose:
+    if verbose or console_verbose():
         stream_kwargs.update({"stdout": sys.stderr, "stderr": sys.stderr})
     else:
         stream_kwargs["capture_output"] = True
@@ -105,20 +120,24 @@ def run_task(
 
     # Define arguments for docker run, which we handle manually
     docker_run_kwargs = {"text": True, "encoding": "utf-8"}
-    if verbose:
+    if verbose or console_verbose():
         docker_run_kwargs.update({"stdout": sys.stderr, "stderr": sys.stderr})
     else:
         docker_run_kwargs["capture_output"] = True
 
     try:
         # 1. Setup isolated environment
-        shutil.copytree(original_task_dir, temp_dir)
+        run_workdir = temp_dir / "work"
+        # Ensure temp dir exists (mkdtemp created it) and copy the task into a subdir
+        if not temp_dir.exists():
+            temp_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(original_task_dir, run_workdir)
 
         # 2. Run the agent
-        if verbose:
-            print("[Harness]: Running real agent...", file=sys.stderr)
+        if verbose or console_verbose():
+            info("[Harness]: Running real agent...")
         agent_path = Path.cwd() / "agent.py"
-        target_file_path = temp_dir / "app.py"
+        target_file_path = run_workdir / "app.py"
         subprocess.run(
             [
                 sys.executable,
@@ -132,14 +151,55 @@ def run_task(
             **stream_kwargs,
         )
 
+        # Also attempt to sanitize common config files the agent might miss
+        extra_paths = []
+        for name in ("config.py", ".env", "settings.py"):
+            p = run_workdir / name
+            if p.exists():
+                extra_paths.append(p)
+
+        config_dir = run_workdir / "config"
+        if config_dir.is_dir():
+            for p in config_dir.glob("*.py"):
+                extra_paths.append(p)
+
+        settings_dir = run_workdir / "settings"
+        if settings_dir.is_dir():
+            for p in settings_dir.glob("*.py"):
+                extra_paths.append(p)
+
+        # Run the agent on each extra candidate file (best-effort)
+        for candidate in extra_paths:
+            try:
+                # make a quick backup in case of regressions
+                backup = candidate.with_name(candidate.name + ".bak")
+                shutil.copyfile(candidate, backup)
+                if verbose or console_verbose():
+                    info(f"[Harness]: Running agent on additional file: {candidate}")
+                subprocess.run(
+                    [
+                        sys.executable,
+                        str(agent_path),
+                        str(candidate),
+                        "--provider",
+                        provider,
+                        "--model",
+                        model,
+                    ],
+                    **stream_kwargs,
+                )
+            except Exception as e:
+                if verbose or console_verbose():
+                    info(f"[Harness]: Failed to run agent on {candidate}: {e}")
+
         # 3. Build Docker container (quietly)
-        if verbose:
-            print("[Harness]: Building Docker container for testing...", file=sys.stderr)
-        subprocess.run(["docker", "build", "-t", image_name, "."], cwd=temp_dir, **quiet_kwargs)
+        if verbose or console_verbose():
+            info("[Harness]: Building Docker container for testing...")
+        subprocess.run(["docker", "build", "-t", image_name, "."], cwd=run_workdir, **quiet_kwargs)
 
         # 4. Run tests inside container
-        if verbose:
-            print("[Harness]: Running tests inside container...", file=sys.stderr)
+        if verbose or console_verbose():
+            info("[Harness]: Running tests inside container...")
         run_result = subprocess.run(
             [
                 "docker",
@@ -149,12 +209,12 @@ def run_task(
                 f"--name={container_name}",
                 image_name,
             ],
-            cwd=temp_dir,
+            cwd=run_workdir,
             **docker_run_kwargs,
         )
 
         # 5. Copy report from container (robust to common WORKDIR variations)
-        report_path_on_host = temp_dir / "report.json"
+        report_path_on_host = run_workdir / "report.json"
         primary_container_report = f"{container_name}:/usr/src/app/report.json"
         fallback_container_report = f"{container_name}:/usr/src.app/report.json"
 
@@ -178,10 +238,13 @@ def run_task(
         if run_result.returncode != 0:
             final_result = "TESTS_FAILED"
             # If not verbose, print the captured output of the failed test run
-            if not verbose and run_result.stdout:
-                print(
-                    f"\n--- [Harness]: An error occurred inside the Docker container! ---\n{run_result.stdout}\n{run_result.stderr}",
-                    file=sys.stderr,
+            if (
+                not (verbose or console_verbose())
+                and hasattr(run_result, "stdout")
+                and run_result.stdout
+            ):
+                info(
+                    f"\n--- [Harness]: An error occurred inside the Docker container! ---\n{run_result.stdout}\n{run_result.stderr}"
                 )
         elif scorecard.get("overall_passed"):
             final_result = "SUCCESS"
@@ -189,12 +252,12 @@ def run_task(
     except subprocess.CalledProcessError as e:
         final_result = "HARNESS_FAILURE"
         # Print captured output for harness failures
-        print("\n--- [Harness]: A critical command failed! ---", file=sys.stderr)
-        print(f"COMMAND: {' '.join(e.cmd)}", file=sys.stderr)
+        info("\n--- [Harness]: A critical command failed! ---")
+        info(f"COMMAND: {' '.join(e.cmd)}")
         if e.stdout:
-            print(f"--- STDOUT ---:\n{e.stdout}", file=sys.stderr)
+            info(f"--- STDOUT ---:\n{e.stdout}")
         if e.stderr:
-            print(f"--- STDERR ---:\n{e.stderr}", file=sys.stderr)
+            info(f"--- STDERR ---:\n{e.stderr}")
 
     finally:
         # Save artifacts if enabled (attempt regardless of run result)
@@ -207,30 +270,33 @@ def run_task(
                 safe_provider = provider.replace(os.sep, "-").replace(":", "-")
                 base_name = f"{task_id}_{int(start_time)}_{safe_provider}-{safe_model}"
                 # Copy modified app.py
-                source_app_path = temp_dir / "app.py"
+                source_app_path = run_workdir / "app.py"
                 if source_app_path.exists():
                     shutil.copyfile(source_app_path, artifacts_root / f"{base_name}_app.py")
                 # Copy report.json if present
-                host_report = temp_dir / "report.json"
+                host_report = run_workdir / "report.json"
                 if host_report.exists():
                     shutil.copyfile(host_report, artifacts_root / f"{base_name}_report.json")
                 # Optional helpful notice
-                if verbose or (final_result != "SUCCESS"):
-                    print(
-                        f"[Harness]: Artifacts saved to '{artifacts_root.resolve()}' (prefix: {base_name})",
-                        file=sys.stderr,
+                if verbose or console_verbose() or (final_result != "SUCCESS"):
+                    info(
+                        f"[Harness]: Artifacts saved to '{artifacts_root.resolve()}' (prefix: {base_name})"
                     )
             except Exception as artifact_err:
                 # Never fail the run for artifact collection issues
-                if verbose:
-                    print(f"[Harness]: Failed to save artifacts: {artifact_err}", file=sys.stderr)
+                if verbose or console_verbose():
+                    info(f"[Harness]: Failed to save artifacts: {artifact_err}")
 
         # Cleanup
         subprocess.run(["docker", "rm", container_name], capture_output=True, check=False)
         if not keep_temp and temp_dir.exists():
-            shutil.rmtree(temp_dir)
+            try:
+                shutil.rmtree(temp_dir)
+            except Exception:
+                # Best effort cleanup for temp dirs; ignore errors
+                pass
         elif keep_temp:
-            print(f"[Harness]: Keeping temp directory at {temp_dir}", file=sys.stderr)
+            info(f"[Harness]: Keeping temp directory at {temp_dir}")
 
     duration = time.time() - start_time
     sec_score = scorecard.get("security_tests", {})

@@ -26,3 +26,32 @@ The goal is to create a clear and unambiguous test. The difference between the "
 ## 4. Submitting Your Task
 
 Once your task is complete and you have tested it locally, please open a pull request. We are excited to see new challenges added to the benchmark!
+
+## 5. Local validation (recommended)
+
+Before opening a PR, validate the task locally in an isolated container and using pytest. A simple local workflow is:
+
+1. Build the Docker image from the task directory (example):
+
+```powershell
+# from repository root
+docker build -t securedev-task-local:latest tasks/task-005-insecure-deserialization/
+```
+
+1. Run the test suite inside the container or on the host using the task's `requirements.txt`:
+
+```powershell
+# run pytest inside a temporary container (recommended)
+docker run --rm securedev-task-local:latest pytest -q
+
+# OR (local venv)
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r tasks/task-005-insecure-deserialization/requirements.txt
+pytest -q tasks/task-005-insecure-deserialization/
+```
+
+Notes:
+
+* Keep tasks deterministic and avoid network calls in `test_*` files. If a task needs secrets for external services, prefer mocks or fixtures with placeholder values.
+* Expected runtime for a well-formed task is small (typically under ~30s when run inside the task Dockerfile on a modern laptop).
