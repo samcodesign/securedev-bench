@@ -8,7 +8,7 @@ from .cli_parser import build_parser, handle_informational_flags, interactive_se
 from .console import banner, error, info, init_console, set_verbose, success
 from .discovery import discover_models, discover_providers, discover_tasks
 from .executor import execute_benchmark
-from .reporting import save_reports
+from .reporting import generate_console_report, save_reports
 from .tasks_source import prepare_tasks_source
 
 # `console.banner()` provides the banner now
@@ -100,9 +100,9 @@ def main():
     success(Fore.GREEN + f"\n✅ Benchmark complete. Total duration: {total_duration:.2f}s")
 
     # Reporting
-    markdown_report_for_console = save_reports(all_results)
+    save_reports(all_results)
     info(Style.BRIGHT + Fore.BLUE + "\n--- Benchmark Summary ---")
-    print(markdown_report_for_console)
+    print(generate_console_report(all_results))
 
     # Cleanup cloned tasks repo, if any
     if cloned_tasks_dir and not args.keep_temp:
